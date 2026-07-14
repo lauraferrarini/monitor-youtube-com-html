@@ -59,26 +59,27 @@
         }
 
         td { padding: 10px 8px; border-bottom: 1px solid var(--border-light); text-align: center; white-space: nowrap; vertical-align: middle; }
-        tr:hover { background-color: #fafafa; }
+        
+        /* AJUSTE 1: Colunas de largura super reduzida */
+        .col-region {
+            width: 50px !important;
+            max-width: 50px !important;
+            min-width: 50px !important;
+            text-align: center !important;
+            white-space: nowrap;
+        }
+        .col-rank {
+            width: 70px !important;
+            max-width: 70px !important;
+            min-width: 70px !important;
+            text-align: center !important;
+            white-space: nowrap;
+        }
 
-        /* LARGURAS COMPACTAS PARA REGIÃO E EM ALTA */
-        .col-reg {
-            width: 1% !important;
-            white-space: nowrap !important;
-            padding-left: 15px !important;
-            padding-right: 15px !important;
-        }
-        .col-alta {
-            width: 1% !important;
-            white-space: nowrap !important;
-            padding-left: 15px !important;
-            padding-right: 15px !important;
-        }
-
-        /* DIVISÃO DE DIAS */
-        tr.day-changed-row td {
-            border-top: 2px solid #a0a0a0 !important;
-        }
+        /* AJUSTE 5: Leve distinção de cor entre blocos de dias */
+        .day-group-even { background-color: #ffffff; }
+        .day-group-odd { background-color: #f6f8fa; } /* Tom sutil de cinza-azul */
+        tr.day-group-even:hover, tr.day-group-odd:hover { background-color: #f1f3f5 !important; }
 
         /* BADGES */
         .badge-alta { background: #ff4d4d; color: #fff; padding: 3px 6px; border-radius: 3px; font-weight: 700; font-size: 9px; }
@@ -124,7 +125,7 @@
             border: 1px dashed #ccc;
         }
 
-        /* SEGURANÇA ANTICÓPIA: Força seleção apenas no Título e Link */
+        /* SEGURANÇA ANTICÓPIA: Permite seleção apenas no Título e Link */
         table, th, td, select, span, .region-badge, .badge-alta {
             user-select: none;
             -webkit-user-select: none;
@@ -148,7 +149,9 @@
     <header>
         <h1>Lançamentos</h1>
         <div class="period-selector" id="month-container">
-            </div>
+            <select id="ano-select" onchange="mudarFiltroData()" style="margin-right: 15px; border: 1px solid #ddd; border-radius: 4px; padding: 4px; font-family: inherit; font-size: 11px; cursor: pointer; outline: none;">
+            </select>
+        </div>
     </header>
 
     <nav>
@@ -160,8 +163,8 @@
         <table id="table-lancamentos">
             <thead>
                 <tr>
-                    <th class="col-reg">Região</th>
-                    <th class="col-alta">Em Alta?</th>
+                    <th class="col-region">Região</th>
+                    <th class="col-rank">Em Alta?</th>
                     <th>Título</th>
                     <th>Link do YouTube</th>
                     <th>Canal</th>
@@ -180,20 +183,60 @@
 </div>
 
 <script>
-    let db = []; // Banco de dados carregado dinamicamente
+    let db = []; 
     let currentTab = 'Brasil';
-    let anosEmeses = {}; // Estrutura para controle de datas existentes no JSON
-
+    
     const mesesMap = {
         "Janeiro": "01", "Fevereiro": "02", "Março": "03", "Abril": "04",
         "Maio": "05", "Junho": "06", "Julho": "07", "Agosto": "08",
         "Setembro": "09", "Outubro": "10", "Novembro": "11", "Dezembro": "12"
     };
+    const nomesMeses = Object.keys(mesesMap);
 
-    let anoAtual = "";
-    let mesAtual = "";
+    let hoje = new Date();
+    let anoAtual = hoje.getFullYear().toString();
+    let mesAtual = nomesMeses[hoje.getMonth()];
 
-    // Altera a aba ativa
+    // AJUSTE 4: Constrói dinamicamente os filtros apenas de meses/anos com registros reais no JSON
+    function buildFilters() {
+        if (db.length === 0) return;
+
+        // 1. Extrai anos únicos presentes no histórico
+        const anosDisponiveis = [...new Set(db.map(item => item.data.split('-')[0]))].sort((a, b) => b - a);
+        
+        if (!anosDisponiveis.includes(anoAtual)) {
+            anoAtual = anosDisponiveis[0] || "2026";
+        }
+
+        const select = document.getElementById("ano-select");
+        select.innerHTML = anosDisponiveis.map(ano => `<option value="${ano}" ${ano === anoAtual ? "selected" : ""}>${ano}</option>`).join('');
+
+        // 2. Extrai meses únicos presentes no ano selecionado
+        const mesesNum = [...new Set(
+            db.filter(item => item.data.startsWith(anoAtual))
+              .map(item => item.data.split('-')[1])
+        )].sort((a, b) => a - b);
+
+        const mesesInvertido = {};
+        for (let key in mesesMap) {
+            mesesInvertido[mesesMap[key]] = key;
+        }
+
+        const mesesDisponiveisNomes = mesesNum.map(num => mesesInvertido[num]);
+        
+        if (!mesesDisponiveisNomes.includes(mesAtual) && mesesDisponiveisNomes.length > 0) {
+            mesAtual = mesesDisponiveisNomes[0];
+        }
+
+        const container = document.getElementById("month-container");
+        container.querySelectorAll("span").forEach(span => span.remove());
+
+        mesesDisponiveisNomes.forEach(nomeMes => {
+            const isCurrent = nomeMes === mesAtual ? 'class="current"' : '';
+            container.insertAdjacentHTML('beforeend', `<span ${isCurrent} onclick="mudarMes('${nomeMes}', this)">${nomeMes}</span> `);
+        });
+    }
+
     function switchTab(tab, element) {
         document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
         element.classList.add('active');
@@ -201,21 +244,19 @@
         filterAndRender();
     }
 
-    // Altera o mês pelo cabeçalho dinâmico
     function mudarMes(mes, element) {
+        document.querySelectorAll("#month-container span").forEach(s => s.classList.remove("current"));
+        element.classList.add("current");
         mesAtual = mes;
-        renderizarFiltrosData();
         filterAndRender();
     }
 
-    // Altera o ano selecionado e reconstrói os filtros de meses dinamicamente
     function mudarFiltroData() {
         anoAtual = document.getElementById("ano-select").value;
-        renderizarFiltrosData();
+        buildFilters();
         filterAndRender();
     }
 
-    // Carrega o histórico dinamicamente do servidor do GitHub
     async function carregarDados() {
         try {
             const response = await fetch('history.json');
@@ -223,15 +264,12 @@
             
             const rawData = await response.json();
             
-            // Converte o objeto do JSON estruturado para uma array
             db = Object.keys(rawData).map(id => ({
                 id: id,
                 ...rawData[id]
             }));
 
-            extrairPeriodosDisponiveis();
-            definirPeriodoPadrao();
-            renderizarFiltrosData();
+            buildFilters();
             filterAndRender();
         } catch (error) {
             console.error(error);
@@ -244,105 +282,24 @@
         }
     }
 
-    // Varre o DB para catalogar apenas anos e meses que realmente contêm dados
-    function extrairPeriodosDisponiveis() {
-        anosEmeses = {};
-        db.forEach(item => {
-            if (item.data && item.data.includes("-")) {
-                const partes = item.data.split("-");
-                const ano = partes[0];
-                const mes = partes[1];
-                if (!anosEmeses[ano]) {
-                    anosEmeses[ano] = new Set();
-                }
-                anosEmeses[ano].add(mes);
-            }
-        });
-
-        // Fallback de segurança se o DB estiver completamente vazio
-        if (Object.keys(anosEmeses).length === 0) {
-            const hoje = new Date();
-            const anoH = hoje.getFullYear().toString();
-            const mesH = String(hoje.getMonth() + 1).padStart(2, '0');
-            anosEmeses[anoH] = new Set([mesH]);
-        }
-    }
-
-    // Define o período inicial padrão baseado na inserção mais recente no banco de dados
-    function definirPeriodoPadrao() {
-        if (db.length > 0) {
-            const datas = db.map(i => i.data).filter(Boolean).sort();
-            if (datas.length > 0) {
-                const maisRecente = datas[datas.length - 1]; // ex "2026-07-14"
-                const partes = maisRecente.split("-");
-                anoAtual = partes[0];
-                const numMes = partes[1];
-                mesAtual = Object.keys(mesesMap).find(key => mesesMap[key] === numMes);
-                return;
-            }
-        }
-        // Fallback absoluto
-        const hoje = new Date();
-        anoAtual = hoje.getFullYear().toString();
-        mesAtual = Object.keys(mesesMap)[hoje.getMonth()];
-    }
-
-    // Constrói e injeta o HTML do menu de datas com base no que realmente existe de dados
-    function renderizarFiltrosData() {
-        const container = document.getElementById("month-container");
-        const anosOrdenados = Object.keys(anosEmeses).sort((a, b) => b - a);
-
-        if (!anosEmeses[anoAtual]) {
-            anoAtual = anosOrdenados[0] || new Date().getFullYear().toString();
-        }
-
-        const mesesSet = anosEmeses[anoAtual] || new Set();
-        const mesesOrdenados = Array.from(mesesSet).sort((a, b) => a - b);
-
-        const optionsAnos = anosOrdenados.map(ano => 
-            `<option value="${ano}" ${ano === anoAtual ? "selected" : ""}>${ano}</option>`
-        ).join('');
-
-        if (!mesesSet.has(mesesMap[mesAtual]) && mesesOrdenados.length > 0) {
-            const ultimoMesNum = mesesOrdenados[mesesOrdenados.length - 1];
-            mesAtual = Object.keys(mesesMap).find(key => mesesMap[key] === ultimoMesNum);
-        }
-
-        const spansMeses = mesesOrdenados.map(mesNum => {
-            const nomeMes = Object.keys(mesesMap).find(key => mesesMap[key] === mesNum);
-            const classeCurrent = nomeMes === mesAtual ? 'class="current"' : '';
-            return `<span ${classeCurrent} onclick="mudarMes('${nomeMes}', this)">${nomeMes}</span>`;
-        }).join('\n');
-
-        container.innerHTML = `
-            <select id="ano-select" onchange="mudarFiltroData()" style="margin-right: 15px; border: 1px solid #ddd; border-radius: 4px; padding: 4px; font-family: inherit; font-size: 11px; cursor: pointer; outline: none;">
-                ${optionsAnos}
-            </select>
-            ${spansMeses}
-        `;
-    }
-
-    // Filtra e desenha os dados na tela
     function filterAndRender() {
         if (db.length === 0) return;
 
         const prefixoData = `${anoAtual}-${mesesMap[mesAtual]}`;
         
-        // Define quais códigos de região pertencem a cada aba
         const regioesPermitidas = currentTab === 'Brasil' 
             ? ['US', 'FR', 'NL', 'DE', 'IT', 'PT', 'BR'] 
             : ['AR', 'CL', 'CO', 'ES', 'MX', 'PE'];
 
-        // Aplica os filtros primários de Período e Aba (Região)
         const filtrados = db.filter(item => {
             const mesmaData = item.data && item.data.startsWith(prefixoData);
             const mesmaRegiao = item.regiao && regioesPermitidas.includes(item.regiao);
             return mesmaData && mesmaRegiao;
         });
 
-        // Ordenação Dinâmica Estrita: 1 - Dia (Data Decrescente), 2 - Região (Alfabética), 3 - Posição (Crescente)
+        // AJUSTE 2: Ordenação fixa: 1. Dia (Recente primeiro) | 2. Região (Alfabética) | 3. Posição no Top 10
         filtrados.sort((a, b) => {
-            // 1. Dia (Data Decrescente)
+            // 1. Data (Decrescente)
             const compData = b.data.localeCompare(a.data);
             if (compData !== 0) return compData;
 
@@ -350,9 +307,9 @@
             const compRegiao = a.regiao.localeCompare(b.regiao);
             if (compRegiao !== 0) return compRegiao;
 
-            // 3. Posição (Rank crescente: 1 a 10 primeiro, depois os sem rank)
-            const rankA = a.rank !== null && a.rank !== undefined ? a.rank : 999;
-            const rankB = b.rank !== null && b.rank !== undefined ? b.rank : 999;
+            // 3. Posição (Ascendente, nulos ao final)
+            const rankA = a.rank || 999;
+            const rankB = b.rank || 999;
             return rankA - rankB;
         });
 
@@ -362,24 +319,24 @@
             return;
         }
 
-        // Renderiza as linhas identificando a mudança de dias para aplicar a divisória visual
-        let lastDate = null;
+        let lastDate = "";
+        let groupClass = "day-group-even";
+
         tbody.innerHTML = filtrados.map(item => {
+            // AJUSTE 5: Alterna classe de cor quando o dia mudar
+            if (item.data !== lastDate) {
+                groupClass = groupClass === "day-group-even" ? "day-group-odd" : "day-group-even";
+                lastDate = item.data;
+            }
+
             const emAltaBadge = (item.rank && item.rank <= 10) 
                 ? `<span class="badge-alta">#${item.rank}</span>` 
                 : '-';
 
-            // Adiciona classe de distinção de dia se a data mudar em relação ao item anterior
-            let rowClass = "";
-            if (lastDate !== null && item.data !== lastDate) {
-                rowClass = "day-changed-row";
-            }
-            lastDate = item.data;
-
             return `
-                <tr class="${rowClass}">
-                    <td class="col-reg"><span class="region-badge">${item.regiao}</span></td>
-                    <td class="col-alta">${emAltaBadge}</td>
+                <tr class="${groupClass}">
+                    <td class="col-region"><span class="region-badge">${item.regiao}</span></td>
+                    <td class="col-rank">${emAltaBadge}</td>
                     <td class="title-cell selectable-text" onclick="this.classList.toggle('expanded')">
                         ${item.titulo}
                     </td>
