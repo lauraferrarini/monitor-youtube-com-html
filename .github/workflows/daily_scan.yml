@@ -1,0 +1,41 @@
+name: Youtube Daily Scan
+
+on:
+  schedule:
+    # MUDANÇA AQUI: '1-5' significa Segunda a Sexta
+    # 09:00 UTC = 06:00 Brasil
+    - cron: '0 9 * * 1-5'
+  workflow_dispatch: # O botão manual continua funcionando se você quiser rodar no sábado
+
+permissions:
+  contents: write
+
+jobs:
+  run_script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v3
+
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Instalar bibliotecas
+        run: |
+          pip install google-api-python-client isodate
+
+      - name: Rodar scanner
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: python main.py
+
+      - name: Commitar e Salvar Histórico
+        run: |
+          git config --global user.name "Youtube Bot"
+          git config --global user.email "bot@noreply.github.com"
+          git add history.json
+          git commit -m "Atualizando historico de videos" || echo "Nada novo para salvar"
+          git pull --rebase origin main
+          git push
