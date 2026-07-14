@@ -60,7 +60,6 @@
 
         td { padding: 10px 8px; border-bottom: 1px solid var(--border-light); text-align: center; white-space: nowrap; vertical-align: middle; }
         
-        /* AJUSTE 1: Colunas de largura super reduzida */
         .col-region {
             width: 50px !important;
             max-width: 50px !important;
@@ -76,9 +75,9 @@
             white-space: nowrap;
         }
 
-        /* AJUSTE 5: Leve distinção de cor entre blocos de dias */
+        /* Leve distinção de cor entre blocos de dias */
         .day-group-even { background-color: #ffffff; }
-        .day-group-odd { background-color: #f6f8fa; } /* Tom sutil de cinza-azul */
+        .day-group-odd { background-color: #f6f8fa; } 
         tr.day-group-even:hover, tr.day-group-odd:hover { background-color: #f1f3f5 !important; }
 
         /* BADGES */
@@ -114,6 +113,8 @@
             color: var(--text-muted);
             font-style: italic;
         }
+        
+        /* AJUSTE: Torna a descrição selecionável APENAS quando expandida */
         .desc-cell.expanded {
             white-space: pre-wrap;
             max-width: 450px;
@@ -123,6 +124,10 @@
             border-radius: 4px;
             padding: 8px;
             border: 1px dashed #ccc;
+            user-select: text !important;
+            -webkit-user-select: text !important;
+            -moz-user-select: text !important;
+            -ms-user-select: text !important;
         }
 
         /* SEGURANÇA ANTICÓPIA: Permite seleção apenas no Título e Link */
@@ -197,11 +202,9 @@
     let anoAtual = hoje.getFullYear().toString();
     let mesAtual = nomesMeses[hoje.getMonth()];
 
-    // AJUSTE 4: Constrói dinamicamente os filtros apenas de meses/anos com registros reais no JSON
     function buildFilters() {
         if (db.length === 0) return;
 
-        // 1. Extrai anos únicos presentes no histórico
         const anosDisponiveis = [...new Set(db.map(item => item.data.split('-')[0]))].sort((a, b) => b - a);
         
         if (!anosDisponiveis.includes(anoAtual)) {
@@ -211,7 +214,6 @@
         const select = document.getElementById("ano-select");
         select.innerHTML = anosDisponiveis.map(ano => `<option value="${ano}" ${ano === anoAtual ? "selected" : ""}>${ano}</option>`).join('');
 
-        // 2. Extrai meses únicos presentes no ano selecionado
         const mesesNum = [...new Set(
             db.filter(item => item.data.startsWith(anoAtual))
               .map(item => item.data.split('-')[1])
@@ -297,17 +299,13 @@
             return mesmaData && mesmaRegiao;
         });
 
-        // AJUSTE 2: Ordenação fixa: 1. Dia (Recente primeiro) | 2. Região (Alfabética) | 3. Posição no Top 10
         filtrados.sort((a, b) => {
-            // 1. Data (Decrescente)
             const compData = b.data.localeCompare(a.data);
             if (compData !== 0) return compData;
 
-            // 2. Região (Alfabética)
             const compRegiao = a.regiao.localeCompare(b.regiao);
             if (compRegiao !== 0) return compRegiao;
 
-            // 3. Posição (Ascendente, nulos ao final)
             const rankA = a.rank || 999;
             const rankB = b.rank || 999;
             return rankA - rankB;
@@ -323,7 +321,6 @@
         let groupClass = "day-group-even";
 
         tbody.innerHTML = filtrados.map(item => {
-            // AJUSTE 5: Alterna classe de cor quando o dia mudar
             if (item.data !== lastDate) {
                 groupClass = groupClass === "day-group-even" ? "day-group-odd" : "day-group-even";
                 lastDate = item.data;
