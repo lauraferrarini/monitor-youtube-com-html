@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Painel de Lançamentos</title>
+    <style>
+        :root {
+            --primary-color: #d8df00;
+            --text-main: #1a1a1a;
+            --text-muted: #666;
+            --bg-body: #f4f4f4;
+            --white: #ffffff;
+            --border-light: #e0e0e0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, system-ui, sans-serif;
+            font-size: 11px;
+            background-color: var(--bg-body);
+            margin: 0;
+            padding: 30px;
+            color: var(--text-main);
+            overflow-x: auto; 
+        }
+
+        .container {
+            width: max-content; 
+            min-width: 100%;
+            margin: 0 auto;
+            background: var(--white);
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            box-sizing: border-box;
+        }
+
+        header h1 { font-size: 22px; margin: 0 0 10px 0; font-weight: 700; text-transform: capitalize; }
+
+        .period-selector { font-size: 12px; margin-bottom: 15px; }
+        .period-selector span { margin-right: 15px; color: var(--text-muted); cursor: pointer; }
+        .period-selector .current { color: #000; font-weight: 800; }
+
+        nav {
+            background-color: #f9f9f9; padding: 10px 15px; border-radius: 4px;
+            display: inline-block; border: 1px solid var(--border-light);
+        }
+        .nav-btn { color: var(--text-muted); margin: 0 8px; font-weight: 500; cursor: pointer; transition: color 0.2s; }
+        .nav-btn:hover { color: #000; }
+        .nav-btn.active { color: #000; font-weight: 800; text-decoration: underline; }
+
+        /* TABELA */
+        table { width: 100%; border-collapse: collapse; table-layout: auto; margin-top: 20px; }
+        
+        th {
+            color: #888; font-weight: 600; text-transform: uppercase;
+            font-size: 10px; letter-spacing: 0.5px; text-align: center;
+            padding: 12px 10px; border-bottom: 1px solid var(--border-light);
+            white-space: nowrap;
+        }
+
+        td { padding: 10px 8px; border-bottom: 1px solid var(--border-light); text-align: center; white-space: nowrap; vertical-align: middle; }
+        tr:hover { background-color: #fafafa; }
+
+        /* BADGES */
+        .badge-alta { background: #ff4d4d; color: #fff; padding: 3px 6px; border-radius: 3px; font-weight: 700; font-size: 9px; }
+        .region-badge { background: #eee; padding: 3px 6px; border-radius: 3px; font-weight: 600; font-size: 10px; color: #333; }
+
+        .yt-url { color: #0000EE; text-decoration: none; }
+
+        /* TÍTULO RETRÁTIL */
+        .title-cell {
+            max-width: 250px; 
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: left !important;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .title-cell.expanded {
+            white-space: normal;
+            word-wrap: break-word;
+            overflow: visible;
+        }
+
+        /* DESCRIÇÃO RETRÁTIL */
+        .desc-cell {
+            max-width: 250px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: left !important;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+        .desc-cell.expanded {
+            white-space: pre-wrap;
+            max-width: 450px;
+            overflow: visible;
+            word-wrap: break-word;
+            background: #fafafa;
+            border-radius: 4px;
+            padding: 8px;
+            border: 1px dashed #ccc;
+        }
+
+        /* SEGURANÇA ANTICÓPIA: Força seleção apenas no Título e Link */
+        table, th, td, select, span, .region-badge, .badge-alta {
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        .selectable-text, .selectable-text * {
+            user-select: text !important;
+            -webkit-user-select: text !important;
+            -moz-user-select: text !important;
+            -ms-user-select: text !important;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <header>
+        <h1>Lançamentos</h1>
+        <div class="period-selector" id="month-container">
+            <select id="ano-select" onchange="mudarFiltroData()" style="margin-right: 15px; border: 1px solid #ddd; border-radius: 4px; padding: 4px; font-family: inherit; font-size: 11px; cursor: pointer; outline: none;">
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+            </select>
+            <span onclick="mudarMes('Janeiro', this)">Janeiro</span>
+            <span onclick="mudarMes('Fevereiro', this)">Fevereiro</span>
+            <span onclick="mudarMes('Março', this)">Março</span>
+            <span onclick="mudarMes('Abril', this)">Abril</span>
+            <span onclick="mudarMes('Maio', this)">Maio</span>
+            <span onclick="mudarMes('Junho', this)">Junho</span>
+            <span onclick="mudarMes('Julho', this)">Julho</span>
+            <span onclick="mudarMes('Agosto', this)">Agosto</span>
+            <span onclick="mudarMes('Setembro', this)">Setembro</span>
+            <span onclick="mudarMes('Outubro', this)">Outubro</span>
+            <span onclick="mudarMes('Novembro', this)">Novembro</span>
+            <span onclick="mudarMes('Dezembro', this)">Dezembro</span>
+        </div>
+    </header>
+
+    <nav>
+        <span class="nav-btn active" onclick="switchTab('Brasil', this)">Brasil / Geral</span> |
+        <span class="nav-btn" onclick="switchTab('Latam', this)">Latam</span>
+    </nav>
+
+    <div id="view-lancamentos">
+        <table id="table-lancamentos">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">Região</th>
+                    <th style="width: 80px;">Em Alta?</th>
+                    <th>Título</th>
+                    <th>Link do YouTube</th>
+                    <th>Canal</th>
+                    <th>Descrição</th>
+                    <th style="width: 100px;">Data</th>
+                </tr>
+            </thead>
+            <tbody id="tbody-videos">
+                <tr>
+                    <td colspan="7" style="padding: 40px; color: var(--text-muted);">Carregando dados...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+    let db = []; // Banco de dados carregado dinamicamente
+    let currentTab = 'Brasil';
+    
+    // Nomes dos meses para filtro dinâmico
+    const mesesMap = {
+        "Janeiro": "01", "Fevereiro": "02", "Março": "03", "Abril": "04",
+        "Maio": "05", "Junho": "06", "Julho": "07", "Agosto": "08",
+        "Setembro": "09", "Outubro": "10", "Novembro": "11", "Dezembro": "12"
+    };
+    const nomesMeses = Object.keys(mesesMap);
+
+    // Variáveis de controle de Filtro (Carregadas dinamicamente com base no dia de hoje)
+    let hoje = new Date();
+    let anoAtual = hoje.getFullYear().toString();
+    let mesAtual = nomesMeses[hoje.getMonth()];
+
+    // Configura o cabeçalho no carregamento da página
+    function initFilters() {
+        document.getElementById("ano-select").value = anoAtual;
+        
+        const spans = document.querySelectorAll("#month-container span");
+        spans.forEach(span => {
+            if (span.innerText === mesAtual) {
+                span.classList.add("current");
+            } else {
+                span.classList.remove("current");
+            }
+        });
+    }
+
+    // Altera a aba ativa
+    function switchTab(tab, element) {
+        document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+        element.classList.add('active');
+        currentTab = tab;
+        filterAndRender();
+    }
+
+    // Altera o mês pelo cabeçalho
+    function mudarMes(mes, element) {
+        document.querySelectorAll("#month-container span").forEach(s => s.classList.remove("current"));
+        element.classList.add("current");
+        mesAtual = mes;
+        filterAndRender();
+    }
+
+    // Altera o ano selecionado
+    function mudarFiltroData() {
+        anoAtual = document.getElementById("ano-select").value;
+        filterAndRender();
+    }
+
+    // Carrega o histórico dinamicamente do servidor do GitHub
+    async function carregarDados() {
+        try {
+            // Pega o history.json no mesmo diretório do repositório
+            const response = await fetch('history.json');
+            if (!response.ok) throw new Error('Não foi possível carregar o history.json.');
+            
+            const rawData = await response.json();
+            
+            // Converte o objeto do JSON estruturado para uma array
+            db = Object.keys(rawData).map(id => ({
+                id: id,
+                ...rawData[id]
+            }));
+
+            filterAndRender();
+        } catch (error) {
+            console.error(error);
+            document.getElementById('tbody-videos').innerHTML = `
+                <tr>
+                    <td colspan="7" style="padding: 40px; color: #c0392b; font-weight: bold;">
+                        Erro ao carregar banco de dados (history.json). Certifique-se de que o arquivo existe e já rodou pelo menos uma vez.
+                    </td>
+                </tr>`;
+        }
+    }
+
+    // Filtra e desenha os dados na tela
+    function filterAndRender() {
+        if (db.length === 0) return;
+
+        const prefixoData = `${anoAtual}-${mesesMap[mesAtual]}`;
+        
+        // Define quais códigos de região pertencem a cada aba
+        const regioesPermitidas = currentTab === 'Brasil' 
+            ? ['US', 'FR', 'NL', 'DE', 'IT', 'PT', 'BR'] 
+            : ['AR', 'CL', 'CO', 'ES', 'MX', 'PE'];
+
+        // Aplica os filtros
+        const filtrados = db.filter(item => {
+            const mesmaData = item.data && item.data.startsWith(prefixoData);
+            const mesmaRegiao = item.regiao && regioesPermitidas.includes(item.regiao);
+            return mesmaData && mesmaRegiao;
+        });
+
+        // Ordenação: 1. Data Decrescente | 2. Ranking de Alta Ascendente (1 a 10 primeiro, depois os sem rank)
+        filtrados.sort((a, b) => {
+            const compData = b.data.localeCompare(a.data);
+            if (compData !== 0) return compData;
+
+            const rankA = a.rank || 999;
+            const rankB = b.rank || 999;
+            return rankA - rankB;
+        });
+
+        const tbody = document.getElementById('tbody-videos');
+        if (filtrados.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="padding: 40px; color: var(--text-muted);">Nenhum lançamento registrado para esta seleção neste período.</td></tr>`;
+            return;
+        }
+
+        // Renderiza as linhas
+        tbody.innerHTML = filtrados.map(item => {
+            const emAltaBadge = (item.rank && item.rank <= 10) 
+                ? `<span class="badge-alta">#${item.rank}</span>` 
+                : '-';
+
+            return `
+                <tr>
+                    <td><span class="region-badge">${item.regiao}</span></td>
+                    <td>${emAltaBadge}</td>
+                    <td class="title-cell selectable-text" onclick="this.classList.toggle('expanded')">
+                        ${item.titulo}
+                    </td>
+                    <td class="selectable-text">
+                        <a class="yt-url" href="${item.link}" target="_blank">${item.link}</a>
+                    </td>
+                    <td>${item.canal}</td>
+                    <td class="desc-cell" onclick="this.classList.toggle('expanded')">
+                        ${item.descricao ? item.descricao : 'Sem descrição.'}
+                    </td>
+                    <td style="color: var(--text-muted);">${item.data}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    // Inicialização
+    initFilters();
+    carregarDados();
+</script>
+</body>
+</html>
