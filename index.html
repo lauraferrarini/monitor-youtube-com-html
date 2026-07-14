@@ -133,7 +133,7 @@
         .delete-col { color: var(--primary-color); font-weight: bold; cursor: pointer; font-size: 14px; }
 
         /* SEGURANÇA ANTICÓPIA: Permite seleção apenas no Título e Link */
-        table, th, td, select, span, .region-badge, .badge-alta, .delete-col {
+        table, th, td, select, span, .region-badge, .badge-alta, .delete-col, button {
             user-select: none;
             -webkit-user-select: none;
             -moz-user-select: none;
@@ -167,6 +167,10 @@
     </nav>
 
     <div id="view-lancamentos">
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 8px; min-height: 22px;">
+            <button id="btn-undo" style="display: none; background: #ffffff; border: 1px solid var(--border-light); border-radius: 4px; padding: 4px 10px; font-size: 10px; cursor: pointer; color: var(--text-main); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" onclick="undoDelete()">Desfazer exclusão</button>
+        </div>
+
         <table id="table-lancamentos">
             <thead>
                 <tr>
@@ -194,8 +198,11 @@
     let db = []; 
     let currentTab = 'Brasil';
     
-    // Banco de exclusão local e persistente (salva os IDs ocultados no navegador)
+    // Banco de exclusão local e persistente
     let deletedIds = new Set(JSON.parse(localStorage.getItem('deletedVideoIds') || '[]'));
+    
+    // Pilha de histórico de remoções para o Desfazer (Undo)
+    let deletionHistory = [];
     
     const mesesMap = {
         "Janeiro": "01", "Fevereiro": "02", "Março": "03", "Abril": "04",
@@ -265,11 +272,50 @@
         filterAndRender();
     }
 
-    // Função para deletar apenas da exibição e persistir no LocalStorage
+    // AJUSTE 1: Atualização da exclusão com pilha de histórico
     function deleteItem(id) {
         deletedIds.add(id);
         localStorage.setItem('deletedVideoIds', JSON.stringify([...deletedIds]));
+        
+        deletionHistory.push(id);
+        document.getElementById('btn-undo').style.display = 'inline-block';
+        
         filterAndRender();
+    }
+
+    // AJUSTE 1: Função de desfazer que remove do localStorage e esconde o botão se a pilha esvaziar
+    function undoDelete() {
+        if (deletionHistory.length > 0) {
+            const restoredId = deletionHistory.pop();
+            deletedIds.delete(restoredId);
+            localStorage.setItem('deletedVideoIds', JSON.stringify([...deletedIds]));
+            filterAndRender();
+        }
+        if (deletionHistory.length === 0) {
+            document.getElementById('btn-undo').style.display = 'none';
+        }
+    }
+
+    // AJUSTE 1: Escuta o evento de teclado Ctrl + Z globalmente
+    document.addEventListener('keydown', function(event) {
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+            event.preventDefault();
+            undoDelete();
+        }
+    });
+
+    // AJUSTE 2: Funções para expandir com um clique e encolher/recolher APENAS com duplo clique
+    function expandDesc(element) {
+        if (!element.classList.contains('expanded')) {
+            element.classList.add('expanded');
+        }
+    }
+
+    function collapseDesc(element, event) {
+        if (event) event.stopPropagation(); 
+        if (element.classList.contains('expanded')) {
+            element.classList.remove('expanded');
+        }
     }
 
     async function carregarDados() {
@@ -306,7 +352,6 @@
             ? ['US', 'FR', 'NL', 'DE', 'IT', 'PT', 'BR'] 
             : ['AR', 'CL', 'CO', 'ES', 'MX', 'PE'];
 
-        // Filtra incluindo a regra de não carregar itens removidos
         const filtrados = db.filter(item => {
             const mesmaData = item.data && item.data.startsWith(prefixoData);
             const mesmaRegiao = item.regiao && regioesPermitidas.includes(item.regiao);
@@ -345,7 +390,6 @@
                 ? `<span class="badge-alta">#${item.rank}</span>` 
                 : '-';
 
-            // Ajuste 1: Pega YYYY-MM-DD e transforma em DD/MM para exibição
             const partesData = item.data.split('-');
             const dataExibicao = partesData.length === 3 ? `${partesData[2]}/${partesData[1]}` : item.data;
 
@@ -360,7 +404,7 @@
                         <a class="yt-url" href="${item.link}" target="_blank">${item.link}</a>
                     </td>
                     <td>${item.canal}</td>
-                    <td class="desc-cell" onclick="this.classList.toggle('expanded')">
+                    <td class="desc-cell" onclick="expandDesc(this)" ondblclick="collapseDesc(this, event)">
                         ${item.descricao ? item.descricao : 'Sem descrição.'}
                     </td>
                     <td style="color: var(--text-muted);">${dataExibicao}</td>
