@@ -61,6 +61,20 @@
         td { padding: 10px 8px; border-bottom: 1px solid var(--border-light); text-align: center; white-space: nowrap; vertical-align: middle; }
         tr:hover { background-color: #fafafa; }
 
+        /* AJUSTE DE LARGURA DE COLUNAS */
+        .col-regiao {
+            width: 50px !important;
+            min-width: 50px !important;
+            max-width: 50px !important;
+            text-align: center;
+        }
+        .col-emalta {
+            width: 65px !important;
+            min-width: 65px !important;
+            max-width: 65px !important;
+            text-align: center;
+        }
+
         /* BADGES */
         .badge-alta { background: #ff4d4d; color: #fff; padding: 3px 6px; border-radius: 3px; font-weight: 700; font-size: 9px; }
         .region-badge { background: #eee; padding: 3px 6px; border-radius: 3px; font-weight: 600; font-size: 10px; color: #333; }
@@ -129,28 +143,11 @@
     <header>
         <h1>Lançamentos</h1>
         <div class="period-selector" id="month-container">
-            <select id="ano-select" onchange="mudarFiltroData()" style="margin-right: 15px; border: 1px solid #ddd; border-radius: 4px; padding: 4px; font-family: inherit; font-size: 11px; cursor: pointer; outline: none;">
-                <option value="2026">2026</option>
-                <option value="2025">2025</option>
-                <option value="2024">2024</option>
-            </select>
-            <span onclick="mudarMes('Janeiro', this)">Janeiro</span>
-            <span onclick="mudarMes('Fevereiro', this)">Fevereiro</span>
-            <span onclick="mudarMes('Março', this)">Março</span>
-            <span onclick="mudarMes('Abril', this)">Abril</span>
-            <span onclick="mudarMes('Maio', this)">Maio</span>
-            <span onclick="mudarMes('Junho', this)">Junho</span>
-            <span onclick="mudarMes('Julho', this)">Julho</span>
-            <span onclick="mudarMes('Agosto', this)">Agosto</span>
-            <span onclick="mudarMes('Setembro', this)">Setembro</span>
-            <span onclick="mudarMes('Outubro', this)">Outubro</span>
-            <span onclick="mudarMes('Novembro', this)">Novembro</span>
-            <span onclick="mudarMes('Dezembro', this)">Dezembro</span>
-        </div>
+            </div>
     </header>
 
     <nav>
-        <span class="nav-btn active" onclick="switchTab('Brasil', this)">Brasil / Geral</span> |
+        <span class="nav-btn active" onclick="switchTab('Brasil', this)">Brasil</span> |
         <span class="nav-btn" onclick="switchTab('Latam', this)">Latam</span>
     </nav>
 
@@ -158,8 +155,8 @@
         <table id="table-lancamentos">
             <thead>
                 <tr>
-                    <th style="width: 50px;">Região</th>
-                    <th style="width: 80px;">Em Alta?</th>
+                    <th class="col-regiao">Região</th>
+                    <th class="col-emalta">Em Alta?</th>
                     <th>Título</th>
                     <th>Link do YouTube</th>
                     <th>Canal</th>
@@ -181,32 +178,21 @@
     let db = []; // Banco de dados carregado dinamicamente
     let currentTab = 'Brasil';
     
-    // Nomes dos meses para filtro dinâmico
-    const mesesMap = {
+    // Tradutores de data
+    const numeroParaMes = {
+        "01": "Janeiro", "02": "Fevereiro", "03": "Março", "04": "Abril",
+        "05": "Maio", "06": "Junho", "07": "Julho", "08": "Agosto",
+        "09": "Setembro", "10": "Outubro", "11": "Novembro", "12": "Dezembro"
+    };
+    const mesParaNumero = {
         "Janeiro": "01", "Fevereiro": "02", "Março": "03", "Abril": "04",
         "Maio": "05", "Junho": "06", "Julho": "07", "Agosto": "08",
         "Setembro": "09", "Outubro": "10", "Novembro": "11", "Dezembro": "12"
     };
-    const nomesMeses = Object.keys(mesesMap);
 
-    // Variáveis de controle de Filtro (Carregadas dinamicamente com base no dia de hoje)
-    let hoje = new Date();
-    let anoAtual = hoje.getFullYear().toString();
-    let mesAtual = nomesMeses[hoje.getMonth()];
-
-    // Configura o cabeçalho no carregamento da página
-    function initFilters() {
-        document.getElementById("ano-select").value = anoAtual;
-        
-        const spans = document.querySelectorAll("#month-container span");
-        spans.forEach(span => {
-            if (span.innerText === mesAtual) {
-                span.classList.add("current");
-            } else {
-                span.classList.remove("current");
-            }
-        });
-    }
+    // Controle de Filtro Dinâmico
+    let anoAtual = "";
+    let mesAtual = "";
 
     // Altera a aba ativa
     function switchTab(tab, element) {
@@ -218,22 +204,67 @@
 
     // Altera o mês pelo cabeçalho
     function mudarMes(mes, element) {
-        document.querySelectorAll("#month-container span").forEach(s => s.classList.remove("current"));
-        element.classList.add("current");
         mesAtual = mes;
+        renderFiltersUI();
         filterAndRender();
     }
 
     // Altera o ano selecionado
     function mudarFiltroData() {
         anoAtual = document.getElementById("ano-select").value;
+        renderFiltersUI();
         filterAndRender();
+    }
+
+    // Cria os seletores de Ano e Mês dinamicamente a partir dos dados existentes
+    function renderFiltersUI() {
+        const container = document.getElementById("month-container");
+        if (!container || db.length === 0) return;
+
+        // Extrai anos únicos presentes no histórico
+        const anosPresentes = [...new Set(db.map(item => item.data ? item.data.split('-')[0] : null).filter(Boolean))];
+        anosPresentes.sort((a, b) => b - a); // Mais recente primeiro
+
+        if (anosPresentes.length === 0) return;
+
+        // Se o ano atual não está mais disponível na lista, seleciona o mais recente
+        if (!anoAtual || !anosPresentes.includes(anoAtual)) {
+            anoAtual = anosPresentes[0];
+        }
+
+        // Extrai meses únicos existentes para o ano atualmente selecionado
+        const mesesDoAno = [...new Set(db
+            .filter(item => item.data && item.data.startsWith(anoAtual))
+            .map(item => item.data.split('-')[1])
+            .filter(Boolean)
+        )];
+        mesesDoAno.sort((a, b) => parseInt(a) - parseInt(b)); // Janeiro a Dezembro
+
+        const mesesNomes = mesesDoAno.map(num => numeroParaMes[num]);
+
+        // Se o mês selecionado não existir para este ano, seleciona o último disponível do ano
+        if (!mesAtual || !mesesNomes.includes(mesAtual)) {
+            mesAtual = mesesNomes[mesesNomes.length - 1] || "Janeiro";
+        }
+
+        // Constrói o HTML dinâmico
+        let html = `<select id="ano-select" onchange="mudarFiltroData()" style="margin-right: 15px; border: 1px solid #ddd; border-radius: 4px; padding: 4px; font-family: inherit; font-size: 11px; cursor: pointer; outline: none;">`;
+        anosPresentes.forEach(ano => {
+            html += `<option value="${ano}" ${ano === anoAtual ? "selected" : ""}>${ano}</option>`;
+        });
+        html += `</select>`;
+
+        mesesNomes.forEach(mes => {
+            const isCurrent = mes === mesAtual ? 'class="current"' : '';
+            html += `<span ${isCurrent} onclick="mudarMes('${mes}', this)">${mes}</span> `;
+        });
+
+        container.innerHTML = html;
     }
 
     // Carrega o histórico dinamicamente do servidor do GitHub
     async function carregarDados() {
         try {
-            // Pega o history.json no mesmo diretório do repositório
             const response = await fetch('history.json');
             if (!response.ok) throw new Error('Não foi possível carregar o history.json.');
             
@@ -245,6 +276,15 @@
                 ...rawData[id]
             }));
 
+            if (db.length > 0) {
+                // Descobre a última data registrada no histórico para abrir nela por padrão
+                db.sort((a, b) => b.data.localeCompare(a.data));
+                const maisRecente = db[0].data.split('-');
+                anoAtual = maisRecente[0];
+                mesAtual = numeroParaMes[maisRecente[1]];
+            }
+
+            renderFiltersUI();
             filterAndRender();
         } catch (error) {
             console.error(error);
@@ -261,28 +301,31 @@
     function filterAndRender() {
         if (db.length === 0) return;
 
-        const prefixoData = `${anoAtual}-${mesesMap[mesAtual]}`;
+        const prefixoData = `${anoAtual}-${mesParaNumero[mesAtual]}`;
         
         // Define quais códigos de região pertencem a cada aba
         const regioesPermitidas = currentTab === 'Brasil' 
             ? ['US', 'FR', 'NL', 'DE', 'IT', 'PT', 'BR'] 
             : ['AR', 'CL', 'CO', 'ES', 'MX', 'PE'];
 
-        // Aplica os filtros
+        // Aplica os filtros de Data e Região
         const filtrados = db.filter(item => {
             const mesmaData = item.data && item.data.startsWith(prefixoData);
             const mesmaRegiao = item.regiao && regioesPermitidas.includes(item.regiao);
             return mesmaData && mesmaRegiao;
         });
 
-        // Ordenação: 1. Data Decrescente | 2. Ranking de Alta Ascendente (1 a 10 primeiro, depois os sem rank)
+        // ORDENAÇÃO: 1. Por Região (Alfabético) | 2. Por Posição (Rank 1 a 10 primeiro, depois os sem rank)
         filtrados.sort((a, b) => {
-            const compData = b.data.localeCompare(a.data);
-            if (compData !== 0) return compData;
+            const compRegiao = a.regiao.localeCompare(b.regiao);
+            if (compRegiao !== 0) return compRegiao;
 
             const rankA = a.rank || 999;
             const rankB = b.rank || 999;
-            return rankA - rankB;
+            if (rankA !== rankB) return rankA - rankB;
+
+            // Critério de desempate: Data (Mais recente primeiro)
+            return b.data.localeCompare(a.data);
         });
 
         const tbody = document.getElementById('tbody-videos');
@@ -291,7 +334,7 @@
             return;
         }
 
-        // Renderiza as linhas
+        // Renderiza as linhas da tabela
         tbody.innerHTML = filtrados.map(item => {
             const emAltaBadge = (item.rank && item.rank <= 10) 
                 ? `<span class="badge-alta">#${item.rank}</span>` 
@@ -299,8 +342,8 @@
 
             return `
                 <tr>
-                    <td><span class="region-badge">${item.regiao}</span></td>
-                    <td>${emAltaBadge}</td>
+                    <td class="col-regiao"><span class="region-badge">${item.regiao}</span></td>
+                    <td class="col-emalta">${emAltaBadge}</td>
                     <td class="title-cell selectable-text" onclick="this.classList.toggle('expanded')">
                         ${item.titulo}
                     </td>
@@ -318,7 +361,6 @@
     }
 
     // Inicialização
-    initFilters();
     carregarDados();
 </script>
 </body>
