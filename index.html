@@ -114,7 +114,6 @@
             font-style: italic;
         }
         
-        /* AJUSTE: Torna a descrição selecionável APENAS quando expandida */
         .desc-cell.expanded {
             white-space: pre-wrap;
             max-width: 450px;
@@ -130,8 +129,11 @@
             -ms-user-select: text !important;
         }
 
+        /* Botão de Excluir Sutil do Design Original */
+        .delete-col { color: var(--primary-color); font-weight: bold; cursor: pointer; font-size: 14px; }
+
         /* SEGURANÇA ANTICÓPIA: Permite seleção apenas no Título e Link */
-        table, th, td, select, span, .region-badge, .badge-alta {
+        table, th, td, select, span, .region-badge, .badge-alta, .delete-col {
             user-select: none;
             -webkit-user-select: none;
             -moz-user-select: none;
@@ -174,12 +176,13 @@
                     <th>Link do YouTube</th>
                     <th>Canal</th>
                     <th>Descrição</th>
-                    <th style="width: 100px;">Data</th>
+                    <th style="width: 80px;">Data</th>
+                    <th style="width: 30px;"></th>
                 </tr>
             </thead>
             <tbody id="tbody-videos">
                 <tr>
-                    <td colspan="7" style="padding: 40px; color: var(--text-muted);">Carregando dados...</td>
+                    <td colspan="8" style="padding: 40px; color: var(--text-muted);">Carregando dados...</td>
                 </tr>
             </tbody>
         </table>
@@ -190,6 +193,9 @@
 <script>
     let db = []; 
     let currentTab = 'Brasil';
+    
+    // Banco de exclusão local e persistente (salva os IDs ocultados no navegador)
+    let deletedIds = new Set(JSON.parse(localStorage.getItem('deletedVideoIds') || '[]'));
     
     const mesesMap = {
         "Janeiro": "01", "Fevereiro": "02", "Março": "03", "Abril": "04",
@@ -259,6 +265,13 @@
         filterAndRender();
     }
 
+    // Função para deletar apenas da exibição e persistir no LocalStorage
+    function deleteItem(id) {
+        deletedIds.add(id);
+        localStorage.setItem('deletedVideoIds', JSON.stringify([...deletedIds]));
+        filterAndRender();
+    }
+
     async function carregarDados() {
         try {
             const response = await fetch('history.json');
@@ -277,7 +290,7 @@
             console.error(error);
             document.getElementById('tbody-videos').innerHTML = `
                 <tr>
-                    <td colspan="7" style="padding: 40px; color: #c0392b; font-weight: bold;">
+                    <td colspan="8" style="padding: 40px; color: #c0392b; font-weight: bold;">
                         Erro ao carregar banco de dados (history.json). Certifique-se de que o arquivo existe e já rodou pelo menos uma vez.
                     </td>
                 </tr>`;
@@ -293,10 +306,12 @@
             ? ['US', 'FR', 'NL', 'DE', 'IT', 'PT', 'BR'] 
             : ['AR', 'CL', 'CO', 'ES', 'MX', 'PE'];
 
+        // Filtra incluindo a regra de não carregar itens removidos
         const filtrados = db.filter(item => {
             const mesmaData = item.data && item.data.startsWith(prefixoData);
             const mesmaRegiao = item.regiao && regioesPermitidas.includes(item.regiao);
-            return mesmaData && mesmaRegiao;
+            const naoExcluido = !deletedIds.has(item.id);
+            return mesmaData && mesmaRegiao && naoExcluido;
         });
 
         filtrados.sort((a, b) => {
@@ -313,7 +328,7 @@
 
         const tbody = document.getElementById('tbody-videos');
         if (filtrados.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="padding: 40px; color: var(--text-muted);">Nenhum lançamento registrado para esta seleção neste período.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" style="padding: 40px; color: var(--text-muted);">Nenhum lançamento registrado para esta seleção neste período.</td></tr>`;
             return;
         }
 
@@ -330,6 +345,10 @@
                 ? `<span class="badge-alta">#${item.rank}</span>` 
                 : '-';
 
+            // Ajuste 1: Pega YYYY-MM-DD e transforma em DD/MM para exibição
+            const partesData = item.data.split('-');
+            const dataExibicao = partesData.length === 3 ? `${partesData[2]}/${partesData[1]}` : item.data;
+
             return `
                 <tr class="${groupClass}">
                     <td class="col-region"><span class="region-badge">${item.regiao}</span></td>
@@ -344,7 +363,8 @@
                     <td class="desc-cell" onclick="this.classList.toggle('expanded')">
                         ${item.descricao ? item.descricao : 'Sem descrição.'}
                     </td>
-                    <td style="color: var(--text-muted);">${item.data}</td>
+                    <td style="color: var(--text-muted);">${dataExibicao}</td>
+                    <td class="delete-col" onclick="deleteItem('${item.id}')">✕</td>
                 </tr>
             `;
         }).join('');
